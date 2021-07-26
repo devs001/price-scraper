@@ -1,2 +1,7 @@
 *.csv
-venv
+.env
+/dist
+venv/**
+venv/
+.idea/
+.vscode/
