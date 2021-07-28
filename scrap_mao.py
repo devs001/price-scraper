@@ -73,7 +73,7 @@ def supplyvan_soup_extraction(soup: bs4.BeautifulSoup):
 
 def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
     print("its here im exraaction")
-    name_list = list(soup.find_all('a', attrs={'class': 'product-title'}))
+    name_list = list(soup.find_all(attrs={'class': 'product-title'}))
     price_list = list(soup.find_all('span', attrs={'class': 'price'}))
     print(len(name_list))
     print(len(price_list))
@@ -86,12 +86,13 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
         product_lis = []
         print(index)
         try:
-            index = (float(index))
+            index = float(index)
         except Exception as e:
             print(e)
             index = (int(index))
         product_lis.append([name_obj.text, float(index)])
-    return product_lis
+        return product_lis
+    return None
 
 
 # amazon_scrape = Scrape('amazon', 'dewalt', 48)
@@ -122,7 +123,7 @@ def get_data_soup(scrape_object: Scrape, retry=3):
                 response = None
                 print('no site found')
         else:
-            print("no suop ----------->>>>>>>>>   soup <<<---------------")
+            print("----------->>>>>>>>>   soup   <<<---------------")
             time.sleep(4)
         if response:
             if len(response) > 0:
@@ -260,14 +261,13 @@ def start_driver(url=None):
     options = webdriver.ChromeOptions()
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
     options.add_argument('headless')
-    options.add_argument('window-size=0x0')
+    options.add_argument('disable-gpu')
+    options.add_argument('window-size=1200,1100')
     driver = webdriver.Chrome('chromedriver', options=options)
-    print('driver > ', end='\t')
-    print(driver)
+
     if url:
-        driver = driver.get(url)
-        print('driver > ', end='\t')
-        print(driver)
+        driver.get(url)
+        return driver
     return driver
 
 
@@ -276,7 +276,7 @@ def save_list(product_list: list):
     product_df.to_csv('xxx.csv')
 
 
-def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get_page_numbers=True):
+def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get_page_numbers=True, driver=None):
     keyword = keyword.strip()
     if keyword:
         if site == 'amazon':
@@ -286,9 +286,6 @@ def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get
         elif site == 'noon':
             scrape = Scrape(site, keyword, 150, get_page_numbers)
         elif site == 'aceuae':
-            driver = start_driver('https://www.aceuae.com/')
-            print('driver > ', end='\t')
-            print(driver)
             scrape = Scrape(site, keyword, 48, get_page_numbers, render=True, driver=driver)
         else:
             print('no site match')
@@ -303,22 +300,26 @@ def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get
 
 def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
     total_products_list = []
+    if site == 'aceuae':
+        driver = start_driver('https://www.aceuae.com/')
+    else:
+        driver = None
     if keywords:
         keywords_list = keywords.split(',')
         for keyword in keywords_list:
-            final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False)
+            final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
             total_products_list.extend(final_list)
         print(print(" total scraaped  ", end='\t'))
         print(len(total_products_list))
         remove_with_wanted(wanted_list, total_products_list)
 
     for keyword in wanted_list:
-        final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False)
+        final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
         total_products_list.extend(final_list)
     remove_with_wanted(wanted_list, total_products_list)
     if wanted_list and retry > 0:
         print("retry wanted left")
-        final_list = parse_for_site("", wanted_list, site, retry=retry-1)
+        final_list = parse_for_site("", wanted_list, site, retry=retry-1,)
         total_products_list.extend(final_list)
     print('total in finals')
 

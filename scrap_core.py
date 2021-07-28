@@ -7,13 +7,17 @@ import requests
 import unicodedata
 import random
 from fake_useragent import UserAgent
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 
 class Scrape:
-    def __init__(self, site: str, keyword: str, hits_per_page: int, get_page_numbers=True, render=False, driver=None):
-        print('new object')
+    def __init__(self, site: str, keyword: str, hits_per_page: int, get_page_numbers=True, render=False,
+                 driver: webdriver = None):
+        print('new ', end='\t')
         self.site = site
         self.keyword = keyword
         self.render = render
@@ -22,7 +26,6 @@ class Scrape:
         self.user_ag = UserAgent()
         if render:
             self.season = driver
-            print('driver')
             print(driver)
         else:
             self.season = requests.Session()
@@ -183,8 +186,11 @@ class Scrape:
     def render_html(self, page_num: int, retry=3, timeout=5):
         driver = self.season
         try:
-            driver.find_elements(By.CLASS_NAME, "form-control form-control").send_keys(self.keyword)
-            driver.find_elements(By.CLASS_NAME, 'btn-search').click()
+            button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, "form-control")))
+            button.click()
+            button.send_keys(self.keyword[:-5])
+            # driver.find_element(By.CLASS_NAME, "form-control").send_keys(self.keyword)
+            driver.find_element(By.CLASS_NAME, 'btn-search').click()
             time.sleep(timeout)
             soup = driver.page_source
         except Exception as e:
