@@ -26,17 +26,14 @@ class Scrape:
         self.user_ag = UserAgent()
         if render:
             self.season = driver
-            print(driver)
         else:
             self.season = requests.Session()
         if get_page_numbers:
             self.number_of_pages = self.get_number_of_pages(hits_per_page=self.hits_per_page)
-            print("total number of pages >> "+str(self.number_of_pages))
             time.sleep(1)
         else:
             self.number_of_pages = 1
         self.remained_pages = [x for x in range(1, self.number_of_pages+1)]
-        print("total remained of pages >> " + str(len(self.remained_pages)))
         self.remained_pages_copy = self.remained_pages.copy()
 
     def url_generation(self, page_num: int):
@@ -125,13 +122,19 @@ class Scrape:
         if site == 'aceuae':
             number_string = suop_first.find(lambda tag: tag.name == 'p' and "Products Found" in tag.text)
             if not number_string and retry > 0:
-                print(suop_first.prettify())
                 print('sleep..', end="")
                 time.sleep(3)
                 print("..")
                 time.sleep(2)
                 self.get_number_of_pages(hits_per_page, retry=(retry - 1))
-            str_for_number = str(number_string.text)
+            if not number_string:
+                return 1
+            try:
+                str_for_number = str(number_string.text)
+            except Exception as e:
+                print(e)
+                print(str_for_number)
+                return 1
             str_for_number = str_for_number.replace('Products Found', '')
             str_for_number = str_for_number.strip()
             str_for_number = str_for_number.replace(',', '')
@@ -188,8 +191,7 @@ class Scrape:
         try:
             button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, "form-control")))
             button.click()
-            button.send_keys(self.keyword[:-5])
-            # driver.find_element(By.CLASS_NAME, "form-control").send_keys(self.keyword)
+            button.send_keys(self.keyword)
             driver.find_element(By.CLASS_NAME, 'btn-search').click()
             time.sleep(timeout)
             soup = driver.page_source

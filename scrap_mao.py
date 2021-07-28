@@ -89,8 +89,15 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
             index = float(index)
         except Exception as e:
             print(e)
-            index = (int(index))
-        product_lis.append([name_obj.text, float(index)])
+            try:
+                index = (int(index))
+            except Exception as e:
+                print(e)
+                print('index cant covert', end='\t')
+                print(index)
+                index = 'null'
+
+        product_lis.append([name_obj.text, index])
         return product_lis
     return None
 
@@ -132,7 +139,6 @@ def get_data_soup(scrape_object: Scrape, retry=3):
             else:
                 print('_______---------->>> o  response <<<<---------____________')
         else:
-            print(response)
             print('_______---------->>> no response <<<<---------____________')
             print(len(scrape_object.remained_pages))
             time.sleep(5)
@@ -292,7 +298,7 @@ def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get
             return None
         scraped_list = get_data_soup(scrape)
         final_list = compare_with_wanted(wanted_list, scraped_list)
-        print('final list -')
+        print('final list -', end='\t')
         print(final_list)
         return final_list
     return None
@@ -307,15 +313,21 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
     if keywords:
         keywords_list = keywords.split(',')
         for keyword in keywords_list:
-            final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
+            final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=True, driver=driver)
             total_products_list.extend(final_list)
-        print(print(" total scraaped  ", end='\t'))
-        print(len(total_products_list))
+            print(print(" total scraaped  ", end='\t'))
+            print(len(total_products_list))
+            print(print(" total left  ", end='\t'))
+            print(len(wanted_list)-len(total_products_list))
         remove_with_wanted(wanted_list, total_products_list)
 
     for keyword in wanted_list:
         final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
         total_products_list.extend(final_list)
+        print(print(" total scraaped  ", end='\t'))
+        print(len(total_products_list))
+        print(print(" total left  ", end='\t'))
+        print(len(wanted_list) - len(total_products_list))
     remove_with_wanted(wanted_list, total_products_list)
     if wanted_list and retry > 0:
         print("retry wanted left")
@@ -328,7 +340,7 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
     return total_products_list
 
 
-keywords = ''
+keywords = 'dewalt,makita drill'
 df_products = pandas.read_csv('price_scrap/ace.csv')
 wanted_list_amazon = [x for x in (df_products.to_dict()['name']).values()]
 print(wanted_list_amazon)
@@ -340,4 +352,29 @@ print(len(result))
 print(print(" total wanted left ", end='\t'))
 print(len(wanted_list_amazon))
 df_results.to_csv('price_scrap/ace-result.csv', index=False)
+
+
+def match_sequence(master_list: list, fellow_list: list):
+    result_list = []
+    for product_name in master_list:
+        for product in fellow_list:
+            if product_name == product[0]:
+                result_list.append(product)
+                break
+        result_list.append([product_name, 'null'])
+    return result_list
+
+
+def get_price_for_list(master_df: pandas.DataFrame, site: str):
+    wanted_list = [x for x in (master_df.to_dict()[site]).values()]
+    print(wanted_list)
+    print(df_products)
+    result_list = parse_for_site(keywords, wanted_list, site)
+    match_sequence(wanted_list,result_list)
+    df_results = pandas.DataFrame(result_list, columns=[site, f'{site}-price'])
+    print(" total get ", end='\t')
+    print(len(result))
+    print(print(" total wanted left ", end='\t'))
+    print(len(wanted_list_amazon))
+
 
