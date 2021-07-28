@@ -7,10 +7,12 @@ import requests
 import unicodedata
 import random
 from fake_useragent import UserAgent
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 
 class Scrape:
-    def __init__(self, site: str, keyword: str, hits_per_page: int, get_page_numbers=True, render=False):
+    def __init__(self, site: str, keyword: str, hits_per_page: int, get_page_numbers=True, render=False, driver=None):
         print('new object')
         self.site = site
         self.keyword = keyword
@@ -19,12 +21,9 @@ class Scrape:
         self.get_page_numbers = get_page_numbers
         self.user_ag = UserAgent()
         if render:
-            options = webdriver.ChromeOptions()
-            options.add_experimental_option("excludeSwitches", ["enable-logging"])
-            options.add_argument('headless')
-            options.add_argument('window-size=0x0')
-            driver = webdriver.Chrome('chromedriver', options=options)
             self.season = driver
+            print('driver')
+            print(driver)
         else:
             self.season = requests.Session()
         if get_page_numbers:
@@ -169,7 +168,6 @@ class Scrape:
         try:
             if post:
                 req_obj = self.season.post(url=self.url_generation(page), headers=headers)
-
             else:
                 print(headers)
                 req_obj = self.season.get(url=self.url_generation(page), headers=headers)
@@ -182,10 +180,11 @@ class Scrape:
             print("problem in sending req -->> "+str(e))
             return None
 
-    def render_html(self, page_num: int, retry=3, timeout=10):
+    def render_html(self, page_num: int, retry=3, timeout=5):
         driver = self.season
         try:
-            driver.get(self.url_generation(page_num=page_num))
+            driver.find_elements(By.CLASS_NAME, "form-control form-control").send_keys(self.keyword)
+            driver.find_elements(By.CLASS_NAME, 'btn-search').click()
             time.sleep(timeout)
             soup = driver.page_source
         except Exception as e:
@@ -196,7 +195,6 @@ class Scrape:
 
     # loop through given times
     def page_loop(self, retry_count=1):
-        random.shuffle(self.remained_pages)
         for page_num in self.remained_pages:
             if self.render:
                 page_soup = self.render_html(page_num)

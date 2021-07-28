@@ -4,6 +4,7 @@ import unicodedata
 import numpy
 import pandas
 import time
+from selenium import webdriver
 
 
 def amazon_soup_extraction(soup: bs4.BeautifulSoup):
@@ -255,6 +256,21 @@ count = 0
 """
 
 
+def start_driver(url=None):
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    options.add_argument('headless')
+    options.add_argument('window-size=0x0')
+    driver = webdriver.Chrome('chromedriver', options=options)
+    print('driver > ', end='\t')
+    print(driver)
+    if url:
+        driver = driver.get(url)
+        print('driver > ', end='\t')
+        print(driver)
+    return driver
+
+
 def save_list(product_list: list):
     product_df = pandas.DataFrame(product_list)
     product_df.to_csv('xxx.csv')
@@ -270,7 +286,10 @@ def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get
         elif site == 'noon':
             scrape = Scrape(site, keyword, 150, get_page_numbers)
         elif site == 'aceuae':
-            scrape = Scrape(site, keyword, 48, get_page_numbers)
+            driver = start_driver('https://www.aceuae.com/')
+            print('driver > ', end='\t')
+            print(driver)
+            scrape = Scrape(site, keyword, 48, get_page_numbers, render=True, driver=driver)
         else:
             print('no site match')
             return None
@@ -308,16 +327,16 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
     return total_products_list
 
 
-keywords = 'dewalt drill'
-df_products = pandas.read_csv('price_scrap/noon-result22.csv')
+keywords = ''
+df_products = pandas.read_csv('price_scrap/ace.csv')
 wanted_list_amazon = [x for x in (df_products.to_dict()['name']).values()]
 print(wanted_list_amazon)
 print(df_products)
-result = parse_for_site(keywords, wanted_list_amazon, 'noon')
+result = parse_for_site(keywords, wanted_list_amazon, 'aceuae')
 df_results = pandas.DataFrame(result, columns=['name', 'price'])
 print(" total get ", end='\t')
 print(len(result))
 print(print(" total wanted left ", end='\t'))
 print(len(wanted_list_amazon))
-df_results.to_csv('price_scrap/noon-resultxx.csv', index=False)
+df_results.to_csv('price_scrap/ace-result.csv', index=False)
 
