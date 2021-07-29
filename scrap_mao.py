@@ -354,27 +354,28 @@ print(len(wanted_list_amazon))
 df_results.to_csv('price_scrap/ace-result.csv', index=False)
 
 
-def match_sequence(master_list: list, fellow_list: list):
-    result_list = []
-    for product_name in master_list:
-        for product in fellow_list:
-            if product_name == product[0]:
-                result_list.append(product)
-                break
-        result_list.append([product_name, 'null'])
-    return result_list
+def match_sequence(master_list: list, fellow_list: list, site: str):
+    mdf = pandas.DataFrame(master_list, columns=[site])
+    fdf = pandas.DataFrame(fellow_list, columns=[site, f'{site}-price'])
+    rdf = pandas.merge(mdf, fdf, how='left', on=site)
+    return rdf
 
 
 def get_price_for_list(master_df: pandas.DataFrame, site: str):
     wanted_list = [x for x in (master_df.to_dict()[site]).values()]
-    print(wanted_list)
-    print(df_products)
     result_list = parse_for_site(keywords, wanted_list, site)
-    match_sequence(wanted_list,result_list)
-    df_results = pandas.DataFrame(result_list, columns=[site, f'{site}-price'])
-    print(" total get ", end='\t')
-    print(len(result))
     print(print(" total wanted left ", end='\t'))
-    print(len(wanted_list_amazon))
+    print(len(wanted_list))
+    structured_df = match_sequence(wanted_list, result_list, site)
+    print(" total get ", end='\t')
+    print(structured_df.count())
+    return structured_df
 
+
+df_products = pandas.read_csv('price_scrap/main.csv')
+main_lis = []
+for site in ['amazon', 'aceuae', 'supplyvan', 'noon']:
+    main_lis.append(get_price_for_list(df_products, site=site))
+
+add_list = pandas.concat(main_lis, axis=1)
 
