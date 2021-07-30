@@ -5,6 +5,8 @@ import numpy
 import pandas
 import time
 from selenium import webdriver
+from multiprocessing.pool import Pool
+import traceback
 
 
 def amazon_soup_extraction(soup: bs4.BeautifulSoup):
@@ -12,11 +14,9 @@ def amazon_soup_extraction(soup: bs4.BeautifulSoup):
     price_list = list(soup.find_all('span', {'class': 'a-offscreen'}))
     product_lis = []
     for name_obj, price_obj in zip(name_list, price_list):
-        print(name_obj.text)
         price = unicodedata.normalize("NFKD", price_obj.text)
         index = str(price.replace('AED', '')).strip()
         index = index.replace(',', '')
-        print(float(index))
         product_lis.append([name_obj.text, float(index)])
     return product_lis
 
@@ -25,7 +25,7 @@ def noon_soup_extraction(soup: bs4.BeautifulSoup):
     print("its here im exraaction")
 
     product_obj_list = list(soup.find_all('div', attrs={'class': 'productContainer'}))
-    print('products found',end='\t')
+    print('products found', end='\t')
     print(len(product_obj_list))
     product_lis = []
     for product_obj in product_obj_list:
@@ -33,14 +33,12 @@ def noon_soup_extraction(soup: bs4.BeautifulSoup):
         price_obj = product_obj.find('strong')
         try:
             name = name_obj['title']
-            print(name)
         except Exception as e:
             print(e)
             continue
         price = unicodedata.normalize("NFKD", price_obj.text)
         index = str(price.strip())
         index = index.replace(',', '')
-        print(float(index))
         product_lis.append([name, float(index)])
     return product_lis
 
@@ -56,13 +54,11 @@ def supplyvan_soup_extraction(soup: bs4.BeautifulSoup):
         name_obj = result_obj.find('a', attrs={'class': 'product-item-link'})
         price_obj = result_obj.find('span', attrs={'class': 'price'})
         name = str(name_obj.get_text()).strip()
-        print(name)
         if price_obj:
             index = unicodedata.normalize("NFKD", price_obj.text)
             index = index.replace('AED', '')
             index = str(index.strip())
             index = index.replace(',', '')
-            print(float(index))
             index = float(index)
         else:
             print('no price')
@@ -75,6 +71,7 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
     print("its here im exraaction")
     name_list = list(soup.find_all(attrs={'class': 'product-title'}))
     price_list = list(soup.find_all('span', attrs={'class': 'price'}))
+    print('aecuae name and price')
     print(len(name_list))
     print(len(price_list))
     for name_obj, price_obj in zip(name_list, price_list):
@@ -84,7 +81,6 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
         index = str(index.strip())
         index = index.replace(',', '')
         product_lis = []
-        print(index)
         try:
             index = float(index)
         except Exception as e:
@@ -111,7 +107,6 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
 def get_data_soup(scrape_object: Scrape, retry=3):
     site_data = []
     for raw_soup_detail in scrape_object.page_loop(3):
-        print("affter genrati")
         page_number = raw_soup_detail[1]
         soup = bs4.BeautifulSoup(raw_soup_detail[0], 'html5lib')
         if soup:
@@ -315,19 +310,24 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
         for keyword in keywords_list:
             final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=True, driver=driver)
             total_products_list.extend(final_list)
-            print(print(" total scraaped  ", end='\t'))
+            print(print(f" total scraaped  {site}", end='\t'))
             print(len(total_products_list))
-            print(print(" total left  ", end='\t'))
-            print(len(wanted_list)-len(total_products_list))
+            print(print(f" total left {site} ", end='\t'))
+            print(len(wanted_list))
         remove_with_wanted(wanted_list, total_products_list)
 
     for keyword in wanted_list:
-        final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
-        total_products_list.extend(final_list)
-        print(print(" total scraaped  ", end='\t'))
-        print(len(total_products_list))
-        print(print(" total left  ", end='\t'))
-        print(len(wanted_list) - len(total_products_list))
+        try:
+            final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=False, driver=driver)
+            total_products_list.extend(final_list)
+        except Exception as e:
+            print(e)
+        else:
+            print(print(f" total scraaped {site} ", end='\t'))
+            print(len(total_products_list))
+            print(print(f" total left  {site}", end='\t'))
+            print(len(wanted_list) - len(total_products_list))
+        traceback.print_exc()
     remove_with_wanted(wanted_list, total_products_list)
     if wanted_list and retry > 0:
         print("retry wanted left")
@@ -335,11 +335,11 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
         total_products_list.extend(final_list)
     print('total in finals')
 
-    print('wanted list left >> '+str(len(wanted_list))+" <<<")
-    print("total product >> "+str(len(total_products_list)))
+    print(f'wanted list left >> {site}'+str(len(wanted_list))+" <<<")
+    print(f"total product {site} >> "+str(len(total_products_list)))
     return total_products_list
 
-
+"""
 keywords = 'dewalt,makita drill'
 df_products = pandas.read_csv('price_scrap/ace.csv')
 wanted_list_amazon = [x for x in (df_products.to_dict()['name']).values()]
@@ -352,6 +352,9 @@ print(len(result))
 print(print(" total wanted left ", end='\t'))
 print(len(wanted_list_amazon))
 df_results.to_csv('price_scrap/ace-result.csv', index=False)
+"""
+
+keywords = 'dewalt,makita drill'
 
 
 def match_sequence(master_list: list, fellow_list: list, site: str):
@@ -363,19 +366,33 @@ def match_sequence(master_list: list, fellow_list: list, site: str):
 
 def get_price_for_list(master_df: pandas.DataFrame, site: str):
     wanted_list = [x for x in (master_df.to_dict()[site]).values()]
-    result_list = parse_for_site(keywords, wanted_list, site)
-    print(print(" total wanted left ", end='\t'))
+    print(print(f" total wanted left {site} ", end='\t'))
+    print(len(wanted_list))
+    print(pandas.DataFrame(wanted_list, columns=[site]))
+    try:
+        result_list = parse_for_site(keywords, wanted_list, site)
+    except Exception as e:
+        print(e)
+        result_list = []
+    print(print(f" total wanted left {site} ", end='\t'))
     print(len(wanted_list))
     structured_df = match_sequence(wanted_list, result_list, site)
-    print(" total get ", end='\t')
+    print(f" total get {site}", end='\t')
     print(structured_df.count())
     return structured_df
 
 
-df_products = pandas.read_csv('price_scrap/main.csv')
-main_lis = []
-for site in ['amazon', 'aceuae', 'supplyvan', 'noon']:
-    main_lis.append(get_price_for_list(df_products, site=site))
+def wrapper_product(lists):
+    return get_price_for_list(*lists)
 
-add_list = pandas.concat(main_lis, axis=1)
+
+df_products = pandas.read_csv('price_scrap/main.csv', encoding= 'unicode_escape')
+if __name__ == '__main__':
+    pool = Pool()
+    list_of_sites = [[df_products, 'amazon'], [df_products, 'aceuae'], [df_products, 'supplyvan'], [df_products, 'noon']]
+    main_lis = pool.map(wrapper_product, list_of_sites)
+    pool.close()
+    pool.join()
+    add_list = pandas.concat(main_lis, axis=1)
+    add_list.to_csv('price_scrap/result.csv')
 

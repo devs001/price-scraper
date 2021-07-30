@@ -50,11 +50,9 @@ class Scrape:
                 url = f'https://www.noon.com/uae-en/search?limit=150&page={page_num}&q={key_field}'
             else:
                 url = f'https://www.noon.com/uae-en/search?limit=150&q={key_field}'
-            print(url)
         if self.site == 'supplyvan':
             key_field = (self.keyword.strip()).replace(' ', '+')
             url = f'https://www.supplyvan.com/catalogsearch/result/index/?p={page_num}&q={key_field}'
-            print(url)
         if self.site == 'aceuae':
             url = f'https://www.aceuae.com/en-ae/product-list/?p={page_num-1}&l=72&k={self.keyword}'
         return url
@@ -65,7 +63,11 @@ class Scrape:
         if self.render:
             first_page = self.render_html(1)
         else:
-            first_page = self.send_req(1).content
+            try:
+                first_page = self.send_req(1).content
+            except Exception as e:
+                print(e)
+                return 1
         str_for_number = '-1'
         suop_first = bs4.BeautifulSoup(first_page, 'html5lib')
         if site == 'amazon':
@@ -175,7 +177,6 @@ class Scrape:
             if post:
                 req_obj = self.season.post(url=self.url_generation(page), headers=headers)
             else:
-                print(headers)
                 req_obj = self.season.get(url=self.url_generation(page), headers=headers)
             if req_obj.status_code == 200:
                 return req_obj
