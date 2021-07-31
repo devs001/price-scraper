@@ -7,12 +7,16 @@ import time
 from selenium import webdriver
 from multiprocessing.pool import Pool
 import traceback
+import multiprocessing
 
 
 def amazon_soup_extraction(soup: bs4.BeautifulSoup):
     name_list = list(soup.find_all('span', attrs={'class': 'a-size-base-plus a-color-base a-text-normal'}))
     price_list = list(soup.find_all('span', {'class': 'a-offscreen'}))
     product_lis = []
+    print('amzon product name and price', end='\t')
+    print(len(name_list))
+    print(len(price_list))
     for name_obj, price_obj in zip(name_list, price_list):
         price = unicodedata.normalize("NFKD", price_obj.text)
         index = str(price.replace('AED', '')).strip()
@@ -22,10 +26,10 @@ def amazon_soup_extraction(soup: bs4.BeautifulSoup):
 
 
 def noon_soup_extraction(soup: bs4.BeautifulSoup):
-    print("its here im exraaction")
+    print("amazon page")
 
     product_obj_list = list(soup.find_all('div', attrs={'class': 'productContainer'}))
-    print('products found', end='\t')
+    print('products found noon', end='\t')
     print(len(product_obj_list))
     product_lis = []
     for product_obj in product_obj_list:
@@ -36,6 +40,7 @@ def noon_soup_extraction(soup: bs4.BeautifulSoup):
         except Exception as e:
             print(e)
             continue
+        traceback.print_exc()
         price = unicodedata.normalize("NFKD", price_obj.text)
         index = str(price.strip())
         index = index.replace(',', '')
@@ -44,10 +49,10 @@ def noon_soup_extraction(soup: bs4.BeautifulSoup):
 
 
 def supplyvan_soup_extraction(soup: bs4.BeautifulSoup):
-    print("its here im exraaction")
+    print("supplyy page")
     name_list = list(soup.find_all('div', attrs={'class': 'product details product-item-details'}))
     price_list = list(soup.find_all('span', attrs={'class': 'price'}))
-    print('list of product - ')
+    print('list of product spply - ')
     print(len(name_list))
     product_lis = []
     for result_obj in name_list:
@@ -68,7 +73,7 @@ def supplyvan_soup_extraction(soup: bs4.BeautifulSoup):
 
 
 def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
-    print("its here im exraaction")
+    print("aceuae")
     name_list = list(soup.find_all(attrs={'class': 'product-title'}))
     price_list = list(soup.find_all('span', attrs={'class': 'price'}))
     print('aecuae name and price')
@@ -92,6 +97,7 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
                 print('index cant covert', end='\t')
                 print(index)
                 index = 'null'
+            traceback.print_exc()
 
         product_lis.append([name_obj.text, index])
         return product_lis
@@ -125,16 +131,16 @@ def get_data_soup(scrape_object: Scrape, retry=3):
                 response = None
                 print('no site found')
         else:
-            print("----------->>>>>>>>>   soup   <<<---------------")
+            print(f"{scrape_object.site}----------->>>>>>>>>   soup   <<<---------------")
             time.sleep(4)
         if response:
             if len(response) > 0:
                 site_data.extend(response)
                 scrape_object.remained_pages_copy.remove(raw_soup_detail[1])
             else:
-                print('_______---------->>> o  response <<<<---------____________')
+                print(f'{scrape_object.site}_______---------->>> o  response <<<<---------____________')
         else:
-            print('_______---------->>> no response <<<<---------____________')
+            print(f'{scrape_object.site}_______---------->>> no response <<<<---------____________')
             print(len(scrape_object.remained_pages))
             time.sleep(5)
 
@@ -341,7 +347,7 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
 
 """
 keywords = 'dewalt,makita drill'
-df_products = pandas.read_csv('price_scrap/ace.csv')
+df_products = pandas.read_csv('ace.csv')
 wanted_list_amazon = [x for x in (df_products.to_dict()['name']).values()]
 print(wanted_list_amazon)
 print(df_products)
@@ -351,7 +357,7 @@ print(" total get ", end='\t')
 print(len(result))
 print(print(" total wanted left ", end='\t'))
 print(len(wanted_list_amazon))
-df_results.to_csv('price_scrap/ace-result.csv', index=False)
+df_results.to_csv('ace-result.csv', index=False)
 """
 
 keywords = 'dewalt,makita drill'
@@ -360,7 +366,7 @@ keywords = 'dewalt,makita drill'
 def match_sequence(master_list: list, fellow_list: list, site: str):
     mdf = pandas.DataFrame(master_list, columns=[site])
     fdf = pandas.DataFrame(fellow_list, columns=[site, f'{site}-price'])
-    rdf = pandas.merge(mdf, fdf, how='left', on=site)
+    rdf = pandas.merge(mdf, fdf.drop_duplicates(), how='left', on=site)
     return rdf
 
 
@@ -374,8 +380,10 @@ def get_price_for_list(master_df: pandas.DataFrame, site: str):
     except Exception as e:
         print(e)
         result_list = []
+    traceback.print_exc()
     print(print(f" total wanted left {site} ", end='\t'))
     print(len(wanted_list))
+    wanted_list = [x for x in (master_df.to_dict()[site]).values()]
     structured_df = match_sequence(wanted_list, result_list, site)
     print(f" total get {site}", end='\t')
     print(structured_df.count())
@@ -385,14 +393,25 @@ def get_price_for_list(master_df: pandas.DataFrame, site: str):
 def wrapper_product(lists):
     return get_price_for_list(*lists)
 
+print('here')
+input_file = input('input full file name ')
 
-df_products = pandas.read_csv('price_scrap/main.csv', encoding= 'unicode_escape')
+
+df_products = pandas.read_csv(input_file, encoding='unicode_escape')
+print(df_products)
+print('here')
+pool = Pool()
+
 if __name__ == '__main__':
-    pool = Pool()
+    multiprocessing.freeze_support()
+    
     list_of_sites = [[df_products, 'amazon'], [df_products, 'aceuae'], [df_products, 'supplyvan'], [df_products, 'noon']]
     main_lis = pool.map(wrapper_product, list_of_sites)
     pool.close()
     pool.join()
     add_list = pandas.concat(main_lis, axis=1)
-    add_list.to_csv('price_scrap/result.csv')
+    add_list.to_csv('result3.csv')
+print('here')
 
+input_filer = input('input ax ')
+print(input_filer)

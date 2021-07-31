@@ -1,6 +1,4 @@
-import requests_html
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 import time
 import bs4
 import requests
@@ -9,9 +7,8 @@ import random
 from fake_useragent import UserAgent
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
+import traceback
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 
 
 class Scrape:
@@ -40,7 +37,8 @@ class Scrape:
         if self.site == 'amazon':
             key_field = (self.keyword.strip()).replace(' ', '+')
             if self.get_page_numbers:
-               url = f'https://www.amazon.ae/s?k={key_field}&page={page_num}&ref=sr_pg_{page_num}'
+                url = f'https://www.amazon.ae/s?k={key_field}&page={page_num}&ref=sr_pg_{page_num}'
+                print(url)
             else:
                 url = f'https://www.amazon.ae/s?k={key_field}'
         if self.site == 'noon':
@@ -67,7 +65,10 @@ class Scrape:
                 first_page = self.send_req(1).content
             except Exception as e:
                 print(e)
+                print('nubeer of pages')
                 return 1
+        traceback.print_exc()
+
         str_for_number = '-1'
         suop_first = bs4.BeautifulSoup(first_page, 'html5lib')
         if site == 'amazon':
@@ -85,7 +86,10 @@ class Scrape:
                 str_for_number = str(number_string.text)
             except Exception as e:
                 print(e)
+                print('amzon  ssttring change')
+                traceback.print_exc()
                 return 1
+
             str_for_number = str_for_number.replace('1-48 of', '')
             str_for_number = str_for_number.replace('over', '')
             lower_index = str_for_number.find('results for')
@@ -155,7 +159,7 @@ class Scrape:
             pages += 1
         if pages <= 0:
             return 1
-        if keyword == 'amazon':
+        if self.site == 'amazon':
             if pages > 7:
                 return 7
         return pages
