@@ -271,7 +271,6 @@ def start_driver(url=None):
     options.add_argument('disable-gpu')
     options.add_argument('window-size=1200,1100')
     driver = webdriver.Chrome('chromedriver', options=options)
-
     if url:
         driver.get(url)
         return driver
@@ -390,28 +389,42 @@ def get_price_for_list(master_df: pandas.DataFrame, site: str):
     return structured_df
 
 
+def get_product_count(df: pandas.DataFrame):
+    lis = {}
+    list_sites = ['amazon', 'aceuae', 'noon', 'supplyvan']
+    for x in list_sites:
+        try:
+            lis[x] = df[x].count()
+        except Exception as e:
+            print('>> '+e)
+            lis[x] = 0
+    return lis
+
+
 def wrapper_product(lists):
     return get_price_for_list(*lists)
 
-print('here')
-input_file = input('input full file name ')
 
-
-df_products = pandas.read_csv(input_file, encoding='unicode_escape')
-print(df_products)
-print('here')
-pool = Pool()
+from front.main import welcome
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    
+    print('here')
+    input_file = welcome.path
+    print('path > '+input_file)
+    try:
+        df_products = pandas.read_csv(input_file, encoding='unicode_escape')
+        dic = get_product_count(df_products)
+        print(dic)
+    except Exception as e:
+        print(e)
+    print('here')
+    pool = Pool(4)
     list_of_sites = [[df_products, 'amazon'], [df_products, 'aceuae'], [df_products, 'supplyvan'], [df_products, 'noon']]
     main_lis = pool.map(wrapper_product, list_of_sites)
     pool.close()
     pool.join()
     add_list = pandas.concat(main_lis, axis=1)
     add_list.to_csv('result3.csv')
-print('here')
 
-input_filer = input('input ax ')
-print(input_filer)
+
