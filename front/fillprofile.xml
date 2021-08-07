@@ -23,8 +23,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">
-</string>
+    <string notr="true"/>
    </property>
    <widget class="QLabel" name="label">
     <property name="geometry">
@@ -117,7 +116,7 @@ font: 14pt &quot;MS Shell Dlg 2&quot;;</string>
      <string>Upload </string>
     </property>
    </widget>
-   <widget class="QProgressBar" name="progressBar">
+   <widget class="QProgressBar" name="amazon_bar">
     <property name="geometry">
      <rect>
       <x>100</x>
@@ -155,7 +154,7 @@ font: 14pt &quot;MS Shell Dlg 2&quot;;</string>
      <string>noon</string>
     </property>
    </widget>
-   <widget class="QProgressBar" name="progressBar_2">
+   <widget class="QProgressBar" name="noon_bar">
     <property name="geometry">
      <rect>
       <x>100</x>
@@ -193,7 +192,7 @@ font: 14pt &quot;MS Shell Dlg 2&quot;;</string>
      <string>aceuae</string>
     </property>
    </widget>
-   <widget class="QProgressBar" name="progressBar_3">
+   <widget class="QProgressBar" name="aceuae_bar">
     <property name="geometry">
      <rect>
       <x>100</x>
@@ -231,7 +230,7 @@ font: 14pt &quot;MS Shell Dlg 2&quot;;</string>
      <string>supplyvan</string>
     </property>
    </widget>
-   <widget class="QProgressBar" name="progressBar_4">
+   <widget class="QProgressBar" name="supplyvan_bar">
     <property name="geometry">
      <rect>
       <x>100</x>

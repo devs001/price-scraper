@@ -6,6 +6,7 @@ from PyQt5.QtGui import QPixmap
 import pandas, multiprocessing
 import sqlite3
 import scrap_mao
+from PyQt5 import QtCore
 
 stylesheet = """QToolTip
 {
@@ -547,7 +548,7 @@ class WelcomeScreen(QDialog):
             self.error.setText('load a file ')
             return None
         try:
-            df_products = pandas.read_csv(self.path, encoding='unicode_escape')
+            df_products = pandas.read_csv(self.path, encoding='utf-8', dtype=str)
 
         except Exception as e:
             print(e)
@@ -573,7 +574,7 @@ def get_product_count(df: pandas.DataFrame):
         try:
             lis[x] = int(df[x].count())
         except Exception as e:
-            print('>> '+e)
+            print('>> '+str(e))
             lis[x] = 0
     return lis
 
@@ -583,6 +584,7 @@ class LoginScreen(QDialog):
         super(LoginScreen, self).__init__()
         loadUi("price_scrap/front/login.xml", self)
         self.path = path
+        self.df = df
         dic = get_product_count(df)
         """
         self.path = list(path)
@@ -597,7 +599,7 @@ class LoginScreen(QDialog):
         self.login.clicked.connect(self.gotocreate)
 
     def gotocreate(self):
-        create = FillProfileScreen()
+        create = FillProfileScreen(self.df)
         widget.addWidget(create)
         widget.setCurrentIndex(widget.currentIndex() + 1)
 
@@ -656,39 +658,46 @@ class CreateAccScreen(QDialog):
 
 
 class FillProfileScreen(QDialog):
-    def __init__(self,df:pandas.DataFrame):
+    def __init__(self, df: pandas.DataFrame):
         super(FillProfileScreen, self).__init__()
         loadUi("price_scrap/front/fillprofile.xml", self)
         self.df = df
-
-        if __name__ == '__main__':
-            multiprocessing.freeze_support()
-            main_lis = self.scraping_start()
-            add_list = pandas.concat(main_lis, axis=1)
-            add_list.to_csv('result3.csv')
+        main_lis = self.scraping_start()
+        add_list = pandas.concat(main_lis, axis=1)
+        add_list.to_csv('result3.csv')
 
     def scraping_start(self):
         df_products = self.df
-        list_of_sites = [[df_products, 'amazon'], [df_products, 'aceuae'], [df_products, 'supplyvan'],
-                         [df_products, 'noon']]
-        pool = multiprocessing.Pool(4)
-        main_lis = pool.map(scrap_mao.wrapper_product, list_of_sites)
-        pool.close()
-        pool.join()
+        dict_product_count = get_product_count(df_products)
+        self.amazon_bar.setRange(0, dict_product_count['amazon'])
+        self.aceuae_bar.setRange(0, dict_product_count['aceuae'])
+        self.supplyvan_bar.setRange(0, dict_product_count['supplyvan'])
+        self.noon_bar.setRange(0, dict_product_count['noon'])
+
+        list_of_sites = [[df_products, 'amazon', self.amazon_bar], [df_products, 'aceuae', self.aceuae_bar],
+                         [df_products, 'supplyvan', self.supplyvan_bar],
+                         [df_products, 'noon', self.noon_bar]]
+        #pool = multiprocessing.Pool(4)
+        main_lis = map(scrap_mao.wrapper_product, list_of_sites)
+        print('end of scraping ')
+        #pool.close()
+        #pool.join()
         return main_lis
 
 
 # main
-app = QApplication(sys.argv)
-app.setStyleSheet(stylesheet)
-welcome = WelcomeScreen()
-widget = QtWidgets.QStackedWidget()
-widget.addWidget(welcome)
-widget.setFixedHeight(800)
-widget.setFixedWidth(1200)
-widget.show()
-try:
-    sys.exit(app.exec_())
-except:
-    print("Exiting")
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    app.setStyleSheet(stylesheet)
+    welcome = WelcomeScreen()
+    widget = QtWidgets.QStackedWidget()
+    widget.addWidget(welcome)
+    widget.setFixedHeight(800)
+    widget.setFixedWidth(1200)
+    widget.show()
+    try:
+        sys.exit(app.exec_())
+    except Exception as e:
+        print("Exiting")
+        print(e)
 

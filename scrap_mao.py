@@ -8,6 +8,7 @@ from selenium import webdriver
 from multiprocessing.pool import Pool
 import traceback
 import multiprocessing
+from PyQt5 import QtCore
 
 
 def amazon_soup_extraction(soup: bs4.BeautifulSoup):
@@ -26,17 +27,23 @@ def amazon_soup_extraction(soup: bs4.BeautifulSoup):
 
 
 def noon_soup_extraction(soup: bs4.BeautifulSoup):
-    print("amazon page")
+    print("noon page")
 
     product_obj_list = list(soup.find_all('div', attrs={'class': 'productContainer'}))
-    print('products found noon', end='\t')
-    print(len(product_obj_list))
+    print(f'products found noon {len(product_obj_list)}')
     product_lis = []
     for product_obj in product_obj_list:
         name_obj = product_obj.find('div', attrs={'class': 'grid'})
         price_obj = product_obj.find('strong')
         try:
             name = name_obj['title']
+            name = unicodedata.normalize("NFKD", name)
+            name = name.strip()
+            brand = name.split(' ')[0]
+            name = name.replace(brand, '')
+            print(brand)
+            print(name)
+            name = name.strip()
         except Exception as e:
             print(e)
             continue
@@ -45,6 +52,8 @@ def noon_soup_extraction(soup: bs4.BeautifulSoup):
         index = str(price.strip())
         index = index.replace(',', '')
         product_lis.append([name, float(index)])
+    print('noon list')
+    print(product_lis)
     return product_lis
 
 
@@ -110,7 +119,7 @@ def aceuae_soup_extraction(soup: bs4.BeautifulSoup):
 # aceuae_scrape = Scrape('aceuae', 'makita', 72, render=True)
 
 
-def get_data_soup(scrape_object: Scrape, retry=3):
+def get_data_soup(scrape_object: Scrape, retry=1):
     site_data = []
     for raw_soup_detail in scrape_object.page_loop(3):
         page_number = raw_soup_detail[1]
@@ -159,6 +168,8 @@ def compare_with_wanted(wanted_list: list, extrated_list: list):
     # this function compare with wanted list if get it then returns it
     # deletes it from wanted list
     lis = []
+
+    print(wanted_list)
     for product in extrated_list:
         if product[0] in wanted_list:
             lis.append(product)
@@ -260,7 +271,6 @@ count = 0
     y = num_site_array2[count][0]
     count += 1
     print(str(x)+" -> "+str(y))
-
 """
 
 
@@ -298,13 +308,12 @@ def process_keyword_get_results(keyword: str, wanted_list: list, site:  str, get
             return None
         scraped_list = get_data_soup(scrape)
         final_list = compare_with_wanted(wanted_list, scraped_list)
-        print('final list -', end='\t')
-        print(final_list)
+        print(f'final list - {final_list}')
         return final_list
     return None
 
-
-def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
+"""
+def parse_for_site(keywords: str, wanted_list: list, site: str, progress_bar, retry=4):
     total_products_list = []
     if site == 'aceuae':
         driver = start_driver('https://www.aceuae.com/')
@@ -315,10 +324,13 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
         for keyword in keywords_list:
             final_list = process_keyword_get_results(keyword, wanted_list, site, get_page_numbers=True, driver=driver)
             total_products_list.extend(final_list)
-            print(print(f" total scraaped  {site}", end='\t'))
+            print(print(f" total scraaped  {site}"))
             print(len(total_products_list))
-            print(print(f" total left {site} ", end='\t'))
+            print(print(f" total left {site} "))
             print(len(wanted_list))
+            QtCore.QMetaObject.invokeMethod(progress_bar, "setValue",
+                                            QtCore.Qt.QueuedConnection,
+                                            QtCore.Q_ARG(int, len(total_products_list)))
         remove_with_wanted(wanted_list, total_products_list)
 
     for keyword in wanted_list:
@@ -331,7 +343,7 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
             print(print(f" total scraaped {site} ", end='\t'))
             print(len(total_products_list))
             print(print(f" total left  {site}", end='\t'))
-            print(len(wanted_list) - len(total_products_list))
+            print(len(wanted_list))
         traceback.print_exc()
     remove_with_wanted(wanted_list, total_products_list)
     if wanted_list and retry > 0:
@@ -343,6 +355,70 @@ def parse_for_site(keywords: str, wanted_list: list, site: str, retry=4):
     print(f'wanted list left >> {site}'+str(len(wanted_list))+" <<<")
     print(f"total product {site} >> "+str(len(total_products_list)))
     return total_products_list
+"""
+
+
+class ScrapeTheSite(QtCore.QRunnable):
+    def __init__(self, keywords: str, wanted_list: list, site: str, progress_bar, retrys=2):
+        QtCore.QRunnable.__init__(self)
+        self.keywords = keywords
+        self.wanted_list = wanted_list
+        self.site = site
+        self.progress_bar = progress_bar
+        self.retrys = retrys
+        self.total_products_list = []
+        self.return_result()
+
+    def return_result(self):
+        return self.total_products_list
+
+    def run(self):
+        site = self.site
+        progress_bar = self.progress_bar
+        if site == 'aceuae':
+            driver = start_driver('https://www.aceuae.com/')
+        else:
+            driver = None
+        if keywords:
+            keywords_list = keywords.split(',')
+            for keyword in keywords_list:
+                final_list = process_keyword_get_results(keyword, self.wanted_list, site, get_page_numbers=True,
+                                                         driver=driver)
+                self.total_products_list.extend(final_list)
+                print(print(f" total scraped {site} > {len(self.total_products_list)}"))
+                print(print(f" total left  {site}  > {len(self.wanted_list)}"))
+                QtCore.QMetaObject.invokeMethod(progress_bar, "setValue",
+                                                QtCore.Qt.QueuedConnection,
+                                                QtCore.Q_ARG(int, len(self.total_products_list)))
+
+            remove_with_wanted(self.wanted_list, self.total_products_list)
+
+        for keyword in self.wanted_list:
+            try:
+                final_list = process_keyword_get_results(keyword, self.wanted_list, site, get_page_numbers=False,
+                                                         driver=driver)
+                self.total_products_list.extend(final_list)
+            except Exception as e:
+                print(e)
+            else:
+                print(print(f" total scraped {site} > {len(self.total_products_list)}"))
+                print(print(f" total left  {site}  .> {len(self.wanted_list)}"))
+                QtCore.QMetaObject.invokeMethod(progress_bar, "setValue",
+                                                QtCore.Qt.QueuedConnection,
+                                                QtCore.Q_ARG(int, len(self.total_products_list)))
+        remove_with_wanted(self.wanted_list, self.total_products_list)
+        if self.wanted_list and self.retrys > 0:
+            print("retry wanted left")
+            self.keywords = ''
+            self.retrys = self.retrys - 1
+
+        print('total in finals ------------- >')
+        print(f'wanted list left >> {site}' + str(len(self.wanted_list)) + " <<<")
+        print(f"total product {site} >> " + str(len(self.total_products_list)))
+
+
+
+
 
 """
 keywords = 'dewalt,makita drill'
@@ -359,7 +435,7 @@ print(len(wanted_list_amazon))
 df_results.to_csv('ace-result.csv', index=False)
 """
 
-keywords = 'dewalt,makita drill'
+keywords = ''
 
 
 def match_sequence(master_list: list, fellow_list: list, site: str):
@@ -369,22 +445,27 @@ def match_sequence(master_list: list, fellow_list: list, site: str):
     return rdf
 
 
-def get_price_for_list(master_df: pandas.DataFrame, site: str):
-    wanted_list = [x for x in (master_df.to_dict()[site]).values()]
-    print(print(f" total wanted left {site} ", end='\t'))
-    print(len(wanted_list))
-    print(pandas.DataFrame(wanted_list, columns=[site]))
+def get_price_for_list(master_df: pandas.DataFrame, site: str, progressBar):
+    wanted_list = [str(x) for x in (master_df.to_dict()[site]).values()]
+    print(print(f" total wanted left {site} > {len(wanted_list)}"))
+    print(type(wanted_list[0]))
     try:
-        result_list = parse_for_site(keywords, wanted_list, site)
+        runnable = ScrapeTheSite(keywords, wanted_list, site, progress_bar=progressBar)
+        QtCore.QThreadPool.globalInstance().start(runnable)
+        print('here now')
+
+        result_list = runnable.return_result()
+        # result_list = parse_for_site(keywords, wanted_list, site, progress_bar=progressBar)
     except Exception as e:
         print(e)
         result_list = []
     traceback.print_exc()
-    print(print(f" total wanted left {site} ", end='\t'))
+    print(print(f" total wanted left mmmmmmmmmmmmmmmmmmm {site} ", end='\t'))
     print(len(wanted_list))
     wanted_list = [x for x in (master_df.to_dict()[site]).values()]
     structured_df = match_sequence(wanted_list, result_list, site)
     print(f" total get {site}", end='\t')
+    print('here we are')
     print(structured_df.count())
     return structured_df
 
@@ -405,12 +486,10 @@ def wrapper_product(lists):
     return get_price_for_list(*lists)
 
 
-from front.main import welcome
-
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     print('here')
-    input_file = welcome.path
+    input_file = ''
     print('path > '+input_file)
     try:
         df_products = pandas.read_csv(input_file, encoding='unicode_escape')
